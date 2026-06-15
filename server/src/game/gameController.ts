@@ -1,0 +1,83 @@
+import { Socket } from "socket.io";
+import { setRoom } from "../utils/roomManager";
+import {
+  Languages,
+  Player,
+  PlayerData,
+  Room,
+  RoomState,
+  Settings,
+} from "../types";
+import { getRoom as gR } from "../utils/roomManager";
+import { DEFAULT_GAME_SETTINGS } from "../constants";
+
+export function generateRoomId() {
+  return String("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx").replace(
+    /[xy]/g,
+    (character) => {
+      const random = (Math.random() * 16) | 0;
+      const value = character === "x" ? random : (random & 0x3) | 0x8;
+
+      return value.toString(16);
+    }
+  );
+}
+
+export async function generateEmptyRoom(
+  socket: Socket,
+  isPrivate: boolean = false,
+  language: Languages = Languages.en
+) {
+  const roomId = generateRoomId();
+  console.log("[ENUM]", Languages);
+  console.log("[DEFAULT_LANGUAGE]", DEFAULT_GAME_SETTINGS.language);
+  console.log("[GENERATE_ROOM] Creating room with language:", language);
+
+  
+
+  const normalizedLanguage = (() => {
+    if (typeof language === "string") {
+      const key = Object.keys(Languages).find((k) => k === language) as
+        | keyof typeof Languages
+        | undefined;
+      if (key) return Languages[key];
+    }
+
+    if (Object.values(Languages).includes(language as Languages)) {
+      return language as Languages;
+    }
+
+    return Languages.en;
+  })();
+
+  const room: Room = {
+    roomId,
+    creator: isPrivate ? socket.id : null,
+    players: [],
+    gameState: {
+      currentRound: 0,
+      drawingData: [],
+      guessedWords: [],
+      word: "",
+      currentPlayer: 0,
+      hintLetters: [],
+      roomState: RoomState.NOT_STARTED,
+      timerStartedAt: new Date(),
+    },
+    settings: { ...DEFAULT_GAME_SETTINGS, language: normalizedLanguage },
+    isPrivate,
+    vote_kickers: [],
+  };
+
+  console.log("[ROOM_LANGUAGE_AFTER_SAVE]", room.settings.language);
+  await setRoom(roomId, room);
+  return roomId;
+}
+
+export async function getRoomFromSocket(socket: Socket) {
+  if (!socket) return null;
+  const roomId = Array.from(socket.rooms).find((id) => id !== socket.id);
+  if (!roomId) return null;
+  const room = await gR(roomId);
+  return room;
+}
