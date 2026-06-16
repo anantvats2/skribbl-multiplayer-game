@@ -1,6 +1,9 @@
 {
   "name": "skribble-clone",
   "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --clear ./src/server.ts",
