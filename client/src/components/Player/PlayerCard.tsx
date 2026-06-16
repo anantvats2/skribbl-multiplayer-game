@@ -1,4 +1,4 @@
-import { GameEvent, Player } from "../../types";
+import { GameEvent, Player, RoomState } from "../../types";
 import { motion } from "framer-motion";
 import clsx from "clsx";
 import { useRoom } from "../../context/RoomContext";
@@ -16,15 +16,24 @@ export default function PlayerCard({
   player: Player;
   index: number;
 }) {
-  const { creator, mutePlayer, mutedPlayers, removeMute } =
+  const { creator, mutePlayer, mutedPlayers, removeMute, me, roomState } =
     useRoom();
   const [isOpen, setIsOpen] = useState(false);
-  const isPlayerSelf = player.playerId === socket.id;
+  const isPlayerSelf = player.playerId === (me?.playerId || socket.id);
   const isMuted = mutedPlayers.includes(player.playerId);
+  const isViewerHost = creator && socket.id && creator === socket.id;
+  const isTargetHost = creator && player.playerId === creator;
 
   const handleVoteKick = () => {
     socket.emit(GameEvent.VOTE_KICK, player.playerId);
     setIsOpen(false);
+  };
+
+  const handleHostKick = () => {
+    if (window.confirm(`Are you sure you want to kick ${player.avatar} ${player.name}?`)) {
+      socket.emit(GameEvent.HOST_KICK, player.playerId);
+      setIsOpen(false);
+    }
   };
 
   const onClose = () => {
@@ -35,15 +44,20 @@ export default function PlayerCard({
     <>
       <motion.div
         className={clsx(
-          "relative w-full rounded-3xl border p-4 shadow-lg transition-transform duration-200 hover:-translate-y-1",
+          "relative w-full rounded-3xl border p-4 shadow-lg transition-transform duration-200",
           {
+            "hover:-translate-y-1 cursor-pointer": !isPlayerSelf,
             "border-amber-300/30 bg-amber-500/10": index === 0,
             "border-white/10 bg-slate-900/90": index !== 0,
           }
         )}
         initial={{ opacity: 0, y: 100 }}
         animate={{ opacity: 1, y: 0 }}
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          if (!isPlayerSelf) {
+            setIsOpen(true);
+          }
+        }}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -52,11 +66,14 @@ export default function PlayerCard({
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm sm:text-base font-semibold text-white">
-                {player.name} {player.playerId === socket.id && "(You)"}
+                {player.avatar} {player.name} {player.playerId === socket.id && "(You)"}
               </p>
               <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
                 {player.playerId === creator && (
-                  <CrownIcon className="text-amber-300" size={16} />
+                  <span className="flex items-center gap-1 font-semibold text-amber-300">
+                    <CrownIcon size={16} />
+                    Host
+                  </span>
                 )}
                 {isMuted && (
                   <VolumeXIcon className="text-slate-400" size={16} />
@@ -70,7 +87,7 @@ export default function PlayerCard({
           </div>
         </div>
       </motion.div>
-      <Dialog title={player.name} isOpen={isOpen} onClose={onClose}>
+      <Dialog title={`${player.avatar} ${player.name}`} isOpen={isOpen} onClose={onClose}>
         {/* Avatar & Buttons */}
         <div className="flex items-center justify-between gap-4">
           {/* Avatar */}
@@ -82,18 +99,31 @@ export default function PlayerCard({
 
           {/* Buttons */}
           <div className="flex flex-col gap-3 w-1/2">
-            <>
+            {roomState === RoomState.NOT_STARTED && (
               <RoomLink className="w-full" />
-            </>
+            )}
             {!isPlayerSelf && (
               <>
-                <Button
-                  size="md"
-                  className="font-bold"
-                  onClick={handleVoteKick}
-                >
-                  Vote Kick
-                </Button>
+                {isViewerHost ? (
+                  <Button
+                    size="md"
+                    variant="danger"
+                    className="font-bold"
+                    onClick={handleHostKick}
+                  >
+                    Kick Player
+                  </Button>
+                ) : (
+                  !isTargetHost && (
+                    <Button
+                      size="md"
+                      className="font-bold"
+                      onClick={handleVoteKick}
+                    >
+                      Vote Kick
+                    </Button>
+                  )
+                )}
                 <Button
                   size="md"
                   onClick={() => {

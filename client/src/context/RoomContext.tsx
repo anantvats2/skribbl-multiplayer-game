@@ -58,32 +58,34 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({
   children,
   activeRoom = null,
 }) => {
-  const [room, setRoom] = useState<Room>({
-    roomId: "",
-    creator: null,
-    players: [],
-    gameState: {
-      currentRound: 0,
-      drawingData: [],
-      guessedWords: [],
-      word: "",
-      currentPlayer: 0,
-      roomState: RoomState.NOT_STARTED,
-      timerStartedAt: new Date(),
-      hintLetters: [],
-    },
-    settings: {
-      players: 0,
-      drawTime: 0,
-      rounds: 0,
-      onlyCustomWords: false,
-      customWords: [],
-      wordCount: 0,
-      hints: 0,
-      language: Languages.en,
-    },
-    isPrivate: false,
-  });
+  const [room, setRoom] = useState<Room>(
+    activeRoom ?? {
+      roomId: "",
+      creator: null,
+      players: [],
+      gameState: {
+        currentRound: 0,
+        drawingData: [],
+        guessedWords: [],
+        word: "",
+        currentPlayer: 0,
+        roomState: RoomState.NOT_STARTED,
+        timerStartedAt: new Date(),
+        hintLetters: [],
+      },
+      settings: {
+        players: 0,
+        drawTime: 0,
+        rounds: 0,
+        onlyCustomWords: false,
+        customWords: [],
+        wordCount: 0,
+        hints: 0,
+        language: Languages.en,
+      },
+      isPrivate: false,
+    }
+  );
   const [myTurn, setIsmyTrun] = useState(false);
   const [me, setMe] = useState<Player | null>(null);
   const [roomState, setRoomState] = useState<RoomState>(RoomState.NOT_STARTED);
@@ -140,6 +142,24 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({
           break;
         case SettingValue.rounds:
           settings.rounds = parseInt(value);
+          break;
+        case SettingValue.wordCount:
+          settings.wordCount = parseInt(value);
+          break;
+        case SettingValue.hints:
+          settings.hints = parseInt(value);
+          break;
+        case SettingValue.language:
+          settings.language = value as Languages;
+          break;
+        case SettingValue.onlyCustomWords:
+          settings.onlyCustomWords = value === "true";
+          break;
+        case SettingValue.customWords:
+          settings.customWords = value
+            .split(",")
+            .map((w) => w.trim())
+            .filter(Boolean);
           break;
         default:
           break;

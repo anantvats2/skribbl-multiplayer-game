@@ -1,9 +1,3 @@
-export enum PlayerAppearance {
-  BODY = 0,
-  EYES,
-  MOUTH,
-}
-
 export enum RoomState {
   NOT_STARTED = "NOT_STARTED",
   PLAYER_CHOOSE_WORD = "PLAYER_CHOOSE_WORD",
@@ -16,7 +10,7 @@ export enum RoomState {
 
 export interface PlayerData {
   name: string;
-  appearance: [number, number, number];
+  avatar: string;
 }
 
 export type EndTurnData = {
@@ -113,6 +107,7 @@ export enum GameEvent {
   CHANGE_SETTIING = "changeSettings",
   WORD_SELECT = "wordSelect",
   VOTE_KICK = "voteKick",
+  HOST_KICK = "hostKick",
 
   // Server Events
   JOINED_ROOM = "joinedRoom",

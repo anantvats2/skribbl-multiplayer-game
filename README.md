@@ -1,4 +1,4 @@
-# Sync Draw Guess
+# Sketch Battle — Real-time Multiplayer Drawing Game
 
 A real-time, multiplayer drawing and guessing game built using Node.js, Socket.IO, React, and TypeScript. Players join rooms, take turns drawing prompts, and compete to guess the drawings in a fun and interactive environment. With real-time canvas synchronization, timeouts for word selection, and smooth drawing experiences, this project captures the excitement of collaborative gameplay.
 

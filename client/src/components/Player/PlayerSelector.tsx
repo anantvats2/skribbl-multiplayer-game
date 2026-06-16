@@ -1,108 +1,31 @@
-import { useState } from "react";
+import clsx from "clsx";
 
-const CustomizableCharacter = () => {
-  // Define options for each customizable part
-  const eyeOptions = ["◕◕", "••", "««", "XX", "OO"];
-  const mouthOptions = ["O", "‿", "—", "∆", "D"];
-  const bodyOptions = ["◓", "◒", "◙", "◐", "○"];
+const AVATARS = ["🍎", "🍌", "🍉", "🍇", "🥭", "🍓", "🥝", "🍍", "🥑", "🍒"];
 
-  // State for currently selected options
-  const [currentEye, setCurrentEye] = useState(0);
-  const [currentMouth, setCurrentMouth] = useState(0);
-  const [currentBody, setCurrentBody] = useState(0);
-
-  // Handlers for changing options
-  const changeOption = (
-    setter: (number: number) => void,
-    current: number,
-    options: string[],
-    direction: string
-  ) => {
-    if (direction === "next") {
-      setter((current + 1) % options.length);
-    } else {
-      setter((current - 1 + options.length) % options.length);
-    }
-  };
-
+export default function PlayerSelector({
+  avatar,
+  onChange,
+}: {
+  avatar: string;
+  onChange: (avatar: string) => void;
+}) {
   return (
-    <div className="flex flex-col items-center ">
-      {/* Main container with blue background */}
-      <div className="gap-5 p-4 rounded-lg shadow-lg relative flex">
-        {/* Character display area */}
-        <div className="flex items-center justify-center h-40">
-          {/* Character */}
-          <div className="text-center">
-            <div className="text-yellow-300 text-6xl">
-              <div>{eyeOptions[currentEye]}</div>
-              <div>{mouthOptions[currentMouth]}</div>
-              <div>{bodyOptions[currentBody]}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Control panels with arrows */}
-        <div className="absolute top-0 left-0 h-full flex flex-col justify-evenly">
-          <button
-            className="text-white text-2xl bg-black rounded p-1 m-1"
-            onClick={() =>
-              changeOption(setCurrentEye, currentEye, eyeOptions, "prev")
-            }
-          >
-            &lt;
-          </button>
-          <button
-            className="text-white text-2xl bg-black rounded p-1 m-1"
-            onClick={() =>
-              changeOption(setCurrentMouth, currentMouth, mouthOptions, "prev")
-            }
-          >
-            &lt;
-          </button>
-          <button
-            className="text-white text-2xl bg-black rounded p-1 m-1"
-            onClick={() =>
-              changeOption(setCurrentBody, currentBody, bodyOptions, "prev")
-            }
-          >
-            &lt;
-          </button>
-        </div>
-
-        <div className="absolute top-0 right-0 h-full flex flex-col justify-evenly">
-          <button
-            className="text-white text-2xl bg-black rounded p-1 m-1"
-            onClick={() =>
-              changeOption(setCurrentEye, currentEye, eyeOptions, "next")
-            }
-          >
-            &gt;
-          </button>
-          <button
-            className="text-white text-2xl bg-black rounded p-1 m-1"
-            onClick={() =>
-              changeOption(setCurrentMouth, currentMouth, mouthOptions, "next")
-            }
-          >
-            &gt;
-          </button>
-          <button
-            className="text-white text-2xl bg-black rounded p-1 m-1"
-            onClick={() =>
-              changeOption(setCurrentBody, currentBody, bodyOptions, "next")
-            }
-          >
-            &gt;
-          </button>
-        </div>
-
-        {/* Cube icon in top-right corner */}
-        <div className="absolute top-2 right-2">
-          <div className="text-white text-xl">⊡</div>
-        </div>
-      </div>
+    <div className="grid grid-cols-5 gap-3 justify-center">
+      {AVATARS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          className={clsx(
+            "text-3xl p-3 rounded-2xl transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-cyan-500/50",
+            avatar === emoji
+              ? "bg-cyan-500/20 border-2 border-cyan-400 shadow-md shadow-cyan-500/10 scale-105"
+              : "bg-slate-900/60 border border-white/5 hover:border-white/20"
+          )}
+          onClick={() => onChange(emoji)}
+        >
+          {emoji}
+        </button>
+      ))}
     </div>
   );
-};
-
-export default CustomizableCharacter;
+}

@@ -24,29 +24,32 @@ export default function MessagesContext({
   function addMessageToChat(message: string, player: Player) {
     if (player.guessed && player.playerId != socket.id) return;
     if (mutedPlayers.includes(player.playerId)) return;
+    const senderName = player.avatar ? `${player.avatar} ${player.name}` : player.name;
     if (myTurn) {
       setMessages([
         ...messages,
-        { sender: player.name, message, type: MessageType.GuessClose },
+        { sender: senderName, message, type: MessageType.GuessClose },
       ]);
     }
     setMessages([
       ...messages,
-      { sender: player.name, message, type: MessageType.Guess },
+      { sender: senderName, message, type: MessageType.Guess },
     ]);
   }
 
   function addPlayerJoinMessage(player: Player) {
+    const senderName = player.avatar ? `${player.avatar} ${player.name}` : player.name;
     setMessages([
       ...messages,
-      { sender: player.name, message: "", type: MessageType.PlayerJoin },
+      { sender: senderName, message: "", type: MessageType.PlayerJoin },
     ]);
   }
 
   function addPlayerLeftMessage(player: Player) {
+    const senderName = player.avatar ? `${player.avatar} ${player.name}` : player.name;
     setMessages([
       ...messages,
-      { sender: player.name, message: "", type: MessageType.PlayerLeft },
+      { sender: senderName, message: "", type: MessageType.PlayerLeft },
     ]);
   }
   function addErrorMessage(message: string) {
@@ -57,10 +60,11 @@ export default function MessagesContext({
   }
 
   function addGuessedMessage(player: Player) {
+    const senderName = player.avatar ? `${player.avatar} ${player.name}` : player.name;
     setMessages([
       ...messages,
       {
-        sender: player.name,
+        sender: senderName,
         message: "has guessed the word",
         type: MessageType.WordGuessed,
       },
@@ -68,10 +72,11 @@ export default function MessagesContext({
   }
   function addWordChosen() {
     if (!currentPlayer) return;
+    const senderName = currentPlayer.avatar ? `${currentPlayer.avatar} ${currentPlayer.name}` : currentPlayer.name;
     setMessages([
       ...messages,
       {
-        sender: currentPlayer.name,
+        sender: senderName,
         message: "is now drawing",
         type: MessageType.WordChoosen,
       },
@@ -115,6 +120,18 @@ export default function MessagesContext({
     ]);
   }
 
+  function handleHostKickMessage(player: Player) {
+    const targetName = player.avatar ? `${player.avatar} ${player.name}` : player.name;
+    setMessages([
+      ...messages,
+      {
+        sender: "",
+        message: `${targetName} was kicked by the host`,
+        type: MessageType.VoteKick,
+      },
+    ]);
+  }
+
   useEffect(() => {
     if (me) {
       addPlayerJoinMessage(me);
@@ -128,21 +145,22 @@ export default function MessagesContext({
     socket.on(GameEvent.GUESSED, addGuessedMessage);
     socket.on(GameEvent.PLAYER_JOINED, addPlayerJoinMessage);
     socket.on(GameEvent.PLAYER_LEFT, addPlayerLeftMessage);
-    socket.on(GameEvent.GUESSED, addGuessedMessage);
     socket.on(GameEvent.WORD_CHOSEN, addWordChosen);
     socket.on(GameEvent.TURN_END, addWordWas);
     socket.on(GameEvent.KICKING_VOTE, handleVoteKicking);
+    socket.on(GameEvent.HOST_KICK, handleHostKickMessage);
     socket.on("error", addErrorMessage);
 
     return () => {
-      socket.on(GameEvent.GAME_STARTED, clearChat);
+      socket.off(GameEvent.GAME_STARTED, clearChat);
       socket.off(GameEvent.GUESS, addMessageToChat);
       socket.off(GameEvent.PLAYER_JOINED, addPlayerJoinMessage);
       socket.off(GameEvent.PLAYER_LEFT, addPlayerLeftMessage);
       socket.off(GameEvent.GUESSED, addGuessedMessage);
       socket.off(GameEvent.WORD_CHOSEN, addWordChosen);
       socket.off(GameEvent.TURN_END, addWordWas);
-      socket.on(GameEvent.KICKING_VOTE, handleVoteKicking);
+      socket.off(GameEvent.KICKING_VOTE, handleVoteKicking);
+      socket.off(GameEvent.HOST_KICK, handleHostKickMessage);
       socket.off("error", addErrorMessage);
     };
   });

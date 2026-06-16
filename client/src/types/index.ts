@@ -12,6 +12,7 @@ export enum GameEvent {
   CHANGE_SETTIING = "changeSettings",
   WORD_SELECT = "wordSelect",
   VOTE_KICK = "voteKick",
+  HOST_KICK = "hostKick",
 
   // Server Events
   JOINED_ROOM = "joinedRoom",
@@ -36,14 +37,9 @@ export enum GameEvent {
   KICKED = "kicked",
 }
 
-export enum PlayerAppearance {
-  BODY = 0,
-  EYES,
-  MOUTH,
-}
 export interface PlayerData {
   name: string;
-  appearance: [number, number, number];
+  avatar: string;
 }
 
 export interface Player extends PlayerData {

@@ -5,7 +5,7 @@ export default function ChoosingWord() {
   return (
     <span className="font-bold text-white text-2xl">
       <span className="text-cyan-400">
-        {currentPlayer?.name}
+        {currentPlayer?.avatar} {currentPlayer?.name}
       </span>{" "}
       is choosing a word
     </span>

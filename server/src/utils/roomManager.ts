@@ -1,4 +1,4 @@
-import { Languages, Room } from "../types";
+import { Languages, Room, RoomState } from "../types";
 
 class RoomManager {
   private rooms = new Map<string, Room>();
@@ -22,12 +22,28 @@ class RoomManager {
   }
 
   getPublicRoom(language: Languages = Languages.en): Room | null {
+    const normalizedLanguage = (() => {
+      if (typeof language === "string") {
+        const key = Object.keys(Languages).find((k) => k === language) as
+          | keyof typeof Languages
+          | undefined;
+        if (key) return Languages[key];
+      }
+
+      if (Object.values(Languages).includes(language as Languages)) {
+        return language as Languages;
+      }
+
+      return Languages.en;
+    })();
+
     for (const roomId of this.getPublicRooms()) {
       const room = this.getRoom(roomId);
       if (!room) continue;
       if (
+        room.gameState.roomState === RoomState.NOT_STARTED &&
         room.players.length < room.settings.players &&
-        room.settings.language === language
+        room.settings.language === normalizedLanguage
       ) {
         return room;
       }

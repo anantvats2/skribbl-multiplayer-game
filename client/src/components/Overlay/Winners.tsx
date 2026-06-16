@@ -47,7 +47,7 @@ export default function Winners() {
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-amber-200/80">Top Player</p>
                   <h4 className="mt-3 text-4xl font-extrabold text-amber-100">
-                    {player.name}
+                    {player.avatar} {player.name}
                   </h4>
                   <p className="mt-2 text-sm text-slate-300">
                     {suffix}
@@ -82,7 +82,7 @@ export default function Winners() {
                     <span className="text-2xl">{rankIcon(index)}</span>
                     <div>
                       <p className={`font-semibold ${isFirst ? "text-amber-100 text-xl" : "text-white text-lg"}`}>
-                        {player.name}
+                        {player.avatar} {player.name}
                       </p>
                       <p className="text-xs text-slate-400">
                         {isFirst && (isTie ? "Top tie" : "Winner")}

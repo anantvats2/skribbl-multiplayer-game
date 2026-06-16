@@ -30,7 +30,7 @@ const RoomLink = ({ className }: { className?: string }) => {
   const { roomId: contextRoomId } = useRoom();
   const roomId =
     contextRoomId ||
-    sessionStorage.getItem("skribble_invite_roomId") ||
+    sessionStorage.getItem("sketchbattle_invite_roomId") ||
     "";
 
   function handleCopy() {

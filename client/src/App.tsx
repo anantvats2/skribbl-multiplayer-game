@@ -11,7 +11,7 @@ const Home: React.FC = () => {
   function handleRoomJoin(room: Room) {
     console.log("Message");
     if (room.roomId) {
-      sessionStorage.setItem("skribble_invite_roomId", room.roomId);
+      sessionStorage.setItem("sketchbattle_invite_roomId", room.roomId);
     }
     setRoom(room);
   }

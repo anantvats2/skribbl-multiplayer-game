@@ -71,9 +71,10 @@ export async function endRound(
   let room = await getRoom(roomId);
   if (!room) return;
 
-  console.log("[HINT] round end - timers cleared, hint timers cancelled for room:", roomId);
+  console.log(`[ROUND_END] Ending round in room ${roomId}. Reason: ${reason}. Current round: ${room.gameState.currentRound}`);
   clearTimers(room.roomId);
-  if (reason === RounEndReason.LEFT && room.players.length === 2) {
+  if (reason === RounEndReason.LEFT && room.players.length < 2) {
+    console.log(`[ROUND_END] Exiting round end early since less than 2 players remain.`);
     return;
   }
 
@@ -304,7 +305,11 @@ export async function endGame(roomId: string, io: Server) {
   const room = await getRoom(roomId);
   if (!room) return;
 
+  console.log(`[GAME_END] Ending game in room ${roomId}. Clearing all timers.`);
   clearTimers(room.roomId);
+
+  const sortedPlayers = [...room.players].sort((a, b) => b.score - a.score);
+  console.log(`[WINNER_CALCULATION] Leaderboard for room ${roomId}:`, sortedPlayers.map(p => `${p.name}: ${p.score} pts`));
 
   room.gameState.currentRound = 0;
   room.gameState.word = "";
@@ -314,7 +319,14 @@ export async function endGame(roomId: string, io: Server) {
   await setRoom(roomId, room);
   io.to(roomId).emit(GameEvent.GAME_ENDED, { room, time: WINNER_SHOW_TIME });
 
-  if (!room.isPrivate) {
+  if (room.players.length === 0) {
+    console.log(`[GAME_END] No players left in room ${roomId}. Deleting room.`);
+    await deleteRoom(roomId);
+    if (startGameTimers.has(roomId)) {
+      clearTimeout(startGameTimers.get(roomId));
+      startGameTimers.delete(roomId);
+    }
+  } else if (!room.isPrivate && room.players.length >= 2) {
     const timeOut = setTimeout(async () => {
       await startGame(room, io);
     }, WINNER_SHOW_TIME * 1000);
@@ -334,11 +346,14 @@ export const handleNewRoom = async (
   if (isPrivate) {
     roomId = await generateEmptyRoom(socket, isPrivate, language);
   } else {
+    console.log("[MATCHMAKING] searching public rooms");
     const room = await getPublicRoom(language);
     if (!room) {
+      console.log("[MATCHMAKING] creating new public room");
       roomId = await generateEmptyRoom(socket, false, language);
     } else {
-      console.log("[HANDLE_NEW_ROOM] Joining existing public room with language:", room.settings.language);
+      console.log(`[MATCHMAKING] found room: ${room.roomId}`);
+      console.log("[MATCHMAKING] joining existing room");
       roomId = room.roomId;
     }
   }
@@ -379,54 +394,88 @@ export async function handleDrawAction(
   await setRoom(room.roomId, room);
 }
 
+export async function removePlayerFromRoom(
+  roomId: string,
+  playerId: string,
+  io: Server
+) {
+  const room = await getRoom(roomId);
+  if (!room) return;
+
+  const playerIndex = room.players.findIndex((p) => p.playerId === playerId);
+  if (playerIndex === -1) return;
+
+  const player = room.players[playerIndex];
+  
+  console.log(`[PLAYER_REMOVAL] Removing player ${player.name} (${playerId}) from room ${roomId}. Current Round: ${room.gameState.currentRound}`);
+
+  const isCurrentDrawer = room.gameState.currentPlayer === playerIndex;
+
+  // Filter player out
+  room.players = room.players.filter((p) => p.playerId !== playerId);
+  room.vote_kickers = room.vote_kickers.filter((e) => e[0] !== playerId);
+
+  // If host left, assign new host
+  if (room.creator === playerId && room.players.length > 0 && room.isPrivate) {
+    room.creator = room.players[0].playerId;
+    console.log(`[PLAYER_REMOVAL] Host left. New host assigned: ${room.creator}`);
+  }
+
+  // Save the state first
+  await setRoom(roomId, room);
+
+  // Emit left event to remaining players
+  io.to(roomId).emit(GameEvent.PLAYER_LEFT, player);
+
+  if (room.gameState.currentRound >= 1) {
+    console.log(`[PLAYER_REMOVAL] Active game. Remaining players count: ${room.players.length}`);
+    
+    // Check if player count dropped below 2
+    if (room.players.length < 2) {
+      console.log(`[PLAYER_REMOVAL] Player count dropped below 2. Ending game.`);
+      await endGame(roomId, io);
+      return;
+    }
+
+    // Adjust currentPlayer index
+    if (playerIndex < room.gameState.currentPlayer) {
+      room.gameState.currentPlayer -= 1;
+      console.log(`[PLAYER_REMOVAL] Decrementing currentPlayer index to ${room.gameState.currentPlayer} (removed player was before drawer)`);
+      await setRoom(roomId, room);
+    } else if (isCurrentDrawer) {
+      room.gameState.currentPlayer -= 1;
+      console.log(`[PLAYER_REMOVAL] Drawer removed. Decremented currentPlayer to ${room.gameState.currentPlayer} and ending round`);
+      await setRoom(roomId, room);
+      await endRound(roomId, io, RounEndReason.LEFT);
+    }
+  } else {
+    // If lobby not started and players length is 0, delete room
+    if (room.players.length === 0) {
+      console.log(`[PLAYER_REMOVAL] No players left in lobby. Deleting room ${roomId}`);
+      await deleteRoom(roomId);
+      clearTimers(roomId);
+      if (startGameTimers.has(roomId)) {
+        clearTimeout(startGameTimers.get(roomId));
+        startGameTimers.delete(roomId);
+      }
+    } else if (room.players.length < 2) {
+      if (startGameTimers.has(roomId)) {
+        console.log(`[PLAYER_REMOVAL] Player count dropped below 2 in lobby. Cancelling auto-start timer.`);
+        clearTimeout(startGameTimers.get(roomId));
+        startGameTimers.delete(roomId);
+      }
+    }
+  }
+}
+
 export const handlePlayerLeft = async (socket: Socket, io: Server) => {
   const room = await getRoomFromSocket(socket);
   if (!room) return;
 
-  const currentPlayer = room.players[room.gameState.currentPlayer];
-  if (currentPlayer && currentPlayer.playerId === socket.id) {
-    await endRound(room.roomId, io, RounEndReason.LEFT);
-  }
-
   const player = room.players.find((e) => e.playerId === socket.id);
   if (!player) return;
-  room.players = room.players.filter((e) => e.playerId != socket.id);
-  if (room.players.length === 0) {
-    await deleteRoom(room.roomId);
-    return;
-  }
 
-  if (
-    room.creator === player.playerId &&
-    room.players.length > 0 &&
-    room.isPrivate
-  ) {
-    room.creator = room.players[0].playerId;
-  }
-
-  await setRoom(room.roomId, room);
-  socket.to(room.roomId).emit(GameEvent.PLAYER_LEFT, player);
-  if (room.players.length === 1 && room.gameState.currentRound >= 1) {
-    // No players left in the room
-    await endGame(room.roomId, io);
-
-    // not 2 players present so game will not start
-    if (!room.isPrivate) {
-      if (startGameTimers.has(room.roomId)) {
-        clearTimeout(startGameTimers.get(room.roomId));
-        startGameTimers.delete(room.roomId);
-      }
-    }
-  }
-
-  if (room.players.length <= 0) {
-    await deleteRoom(room.roomId);
-    clearTimers(room.roomId);
-    if (startGameTimers.has(room.roomId)) {
-      clearTimeout(startGameTimers.get(room.roomId));
-      startGameTimers.delete(room.roomId);
-    }
-  }
+  await removePlayerFromRoom(room.roomId, socket.id, io);
 };
 
 export const handleSettingsChange = async (
@@ -606,7 +655,16 @@ export async function handleNewPlayerJoin(
     !startGameTimers.has(roomId) &&
     room.gameState.currentRound === 0
   ) {
-    await startGame(room, io);
+    console.log(`[MATCHMAKING] Room ${roomId} has >= 2 players. Scheduling auto-start in 10s.`);
+    const timeOut = setTimeout(async () => {
+      const currentRoom = await getRoom(roomId);
+      if (currentRoom && currentRoom.players.length >= 2 && currentRoom.gameState.currentRound === 0) {
+        console.log(`[MATCHMAKING] Starting game automatically for room ${roomId}`);
+        await startGame(currentRoom, io);
+      }
+      startGameTimers.delete(roomId);
+    }, 10000);
+    startGameTimers.set(roomId, timeOut);
   }
 
   if (room.gameState.roomState != RoomState.NOT_STARTED) {
@@ -659,6 +717,12 @@ export async function handleVoteKick(
   const voter = room.players.find((e) => e.playerId === socket.id);
   if (!voter) return;
 
+  // Prevent self-voting
+  if (voter.playerId === player.playerId) return;
+
+  // Prevent voting to kick the host
+  if (player.playerId === room.creator) return;
+
   const voteKicker = voteKickers.find((e) => e[0] === playerId);
   if (!voteKicker) {
     voteKickers.push([playerId, [voter.playerId]]);
@@ -671,18 +735,53 @@ export async function handleVoteKick(
   const votes = voteKickers.find((e) => e[0] === playerId)?.[1].length ?? 0;
 
   io.to(room.roomId).emit(GameEvent.KICKING_VOTE, {
-    voter: voter.name,
-    player: player.name,
+    voter: voter.avatar ? `${voter.avatar} ${voter.name}` : voter.name,
+    player: player.avatar ? `${player.avatar} ${player.name}` : player.name,
     votes,
     votesNeeded,
   });
 
   if (votes >= votesNeeded) {
-    room.players = room.players.filter((e) => e.playerId !== playerId);
-    room.vote_kickers = room.vote_kickers.filter((e) => e[0] !== playerId);
-    io.to(room.roomId).emit(GameEvent.PLAYER_LEFT, player);
+    console.log(`[VOTE_KICK_COMPLETE] Kick threshold reached for player ${player.name} (${playerId}) in room ${room.roomId} (${votes}/${votesNeeded} votes)`);
     io.to(playerId).emit(GameEvent.KICKED);
     io.sockets.sockets.get(playerId)?.leave(room.roomId);
+    await removePlayerFromRoom(room.roomId, playerId, io);
+  } else {
+    await setRoom(room.roomId, room);
   }
-  await setRoom(room.roomId, room);
+}
+
+export async function handleHostKick(
+  socket: Socket,
+  io: Server,
+  playerId: string
+) {
+  const room = await getRoomFromSocket(socket);
+  if (!room) return;
+
+  const host = room.players.find((e) => e.playerId === socket.id);
+  if (!host || room.creator !== socket.id) {
+    console.log(`[HOST_KICK_REJECTED] Socket ${socket.id} is not the host of room ${room.roomId}`);
+    return socket.emit("error", "Only the host can kick players directly");
+  }
+
+  const player = room.players.find((e) => e.playerId === playerId);
+  if (!player) {
+    console.log(`[HOST_KICK_REJECTED] Player ${playerId} not found in room ${room.roomId}`);
+    return;
+  }
+
+  console.log(`[HOST_KICK_COMPLETE] Host ${host.name} kicked player ${player.name} (${playerId}) directly from room ${room.roomId}`);
+
+  // Emit kicked event directly to the kicked client
+  io.to(playerId).emit(GameEvent.KICKED);
+  
+  // Kick the socket from the socket.io room group
+  io.sockets.sockets.get(playerId)?.leave(room.roomId);
+
+  // Emit host kick event to remaining players for chat display
+  io.to(room.roomId).emit(GameEvent.HOST_KICK, player);
+
+  // Remove the player from the room state
+  await removePlayerFromRoom(room.roomId, playerId, io);
 }

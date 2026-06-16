@@ -111,6 +111,11 @@ const GameSettings: React.FC = () => {
     };
   });
 
+  useEffect(() => {
+    setGameSettings(settings);
+    setCustomWords(settings.customWords.join(","));
+  }, [settings]);
+
   const isOwner =
     Boolean(creator && socket.id && creator === socket.id) ||
     (isPrivateRoom && players[0]?.playerId === socket.id);

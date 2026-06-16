@@ -18,6 +18,7 @@ import {
   endRound,
   guessWord,
   handleDrawAction,
+  handleHostKick,
   handleNewPlayerJoin,
   handleNewRoom,
   handlePlayerLeft,
@@ -155,6 +156,10 @@ export function setupSocket(io: Server) {
 
     socket.on(GameEvent.VOTE_KICK, (playerId: string) => {
       handleVoteKick(socket, io, playerId);
+    });
+
+    socket.on(GameEvent.HOST_KICK, (playerId: string) => {
+      handleHostKick(socket, io, playerId);
     });
   });
 }
