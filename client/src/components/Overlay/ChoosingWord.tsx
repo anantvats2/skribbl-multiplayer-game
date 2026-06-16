@@ -4,11 +4,7 @@ export default function ChoosingWord() {
   const { currentPlayer } = useRoom();
   return (
     <span className="font-bold text-white text-2xl">
-      <span
-        style={{
-          color: currentPlayer?.color,
-        }}
-      >
+      <span className="text-cyan-400">
         {currentPlayer?.name}
       </span>{" "}
       is choosing a word

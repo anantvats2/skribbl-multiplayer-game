@@ -55,7 +55,7 @@ const GameSettings: React.FC = () => {
     value: any,
     emitEvent: boolean = false
   ) {
-    const normalizedValue = normalizeSettingValue(setting, value);
+    const normalizedValue = normalizeSettingValue(setting, value) as any;
     console.log("[VALIDATION]", setting, normalizedValue);
     if (setting === SettingValue.language) {
       console.log("[LANGUAGE_DROPDOWN] value:", value, "normalized:", normalizedValue);
@@ -147,7 +147,7 @@ const GameSettings: React.FC = () => {
       value: getLanguageSelectValue(gameSettings.language),
       type: SettingValue.language,
       icon: <Globe size={18} />,
-      options: Object.entries(Languages).map(([key, val]) => ({
+      options: Object.entries(Languages).map(([, val]) => ({
         value: val,
         label: val,
       })),

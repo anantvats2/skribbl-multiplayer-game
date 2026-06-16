@@ -16,7 +16,7 @@ export default function PlayerCard({
   player: Player;
   index: number;
 }) {
-  const { currentPlayer, creator, mutePlayer, mutedPlayers, removeMute } =
+  const { creator, mutePlayer, mutedPlayers, removeMute } =
     useRoom();
   const [isOpen, setIsOpen] = useState(false);
   const isPlayerSelf = player.playerId === socket.id;

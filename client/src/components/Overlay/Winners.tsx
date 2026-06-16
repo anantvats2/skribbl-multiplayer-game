@@ -36,7 +36,7 @@ export default function Winners() {
       </div>
 
       <div className="grid gap-4">
-        {sortedPlayers.slice(0, 1).map((player, index) => {
+        {sortedPlayers.slice(0, 1).map((player) => {
           const suffix = player.score === topScore ? (isTie ? "(Tie)" : "Champion") : "";
           return (
             <div

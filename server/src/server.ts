@@ -17,6 +17,7 @@ const io = require("socket.io")(server, {
 setupSocket(io);
 setupCommandLine(io);
 
-server.listen(8000, function () {
-  console.log("listening on *:8000");
+const PORT = process.env.PORT || 8000;
+server.listen(PORT, function () {
+  console.log(`listening on *:${PORT}`);
 });

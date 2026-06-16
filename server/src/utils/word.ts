@@ -2,7 +2,9 @@ import fs from "fs";
 import path from "path";
 import { Languages } from "../types";
 
-const WORDS_DIR = path.join(__dirname, "../../words");
+const WORDS_DIR = fs.existsSync(path.join(__dirname, "../../words"))
+  ? path.join(__dirname, "../../words")
+  : path.join(__dirname, "../../../words");
 const CUSTOM_WORDS_WEIGHT = 3;
 
 // Cache words in memory
