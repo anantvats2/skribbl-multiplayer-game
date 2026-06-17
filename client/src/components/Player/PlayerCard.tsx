@@ -1,4 +1,4 @@
-import { GameEvent, Player, RoomState } from "../../types";
+import { GameEvent, Player } from "../../types";
 import { motion } from "framer-motion";
 import clsx from "clsx";
 import { useRoom } from "../../context/RoomContext";
@@ -16,7 +16,7 @@ export default function PlayerCard({
   player: Player;
   index: number;
 }) {
-  const { creator, mutePlayer, mutedPlayers, removeMute, me, roomState } =
+  const { creator, mutePlayer, mutedPlayers, removeMute, me } =
     useRoom();
   const [isOpen, setIsOpen] = useState(false);
   const isPlayerSelf = player.playerId === (me?.playerId || socket.id);
@@ -99,9 +99,9 @@ export default function PlayerCard({
 
           {/* Buttons */}
           <div className="flex flex-col gap-3 w-1/2">
-            {roomState === RoomState.NOT_STARTED && (
+            <>
               <RoomLink className="w-full" />
-            )}
+            </>
             {!isPlayerSelf && (
               <>
                 {isViewerHost ? (

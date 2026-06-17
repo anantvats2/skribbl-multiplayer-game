@@ -96,14 +96,14 @@ export default function JoinGameForm() {
       <div className="w-full max-w-md backdrop-blur-md bg-slate-900/60 border border-white/10 rounded-3xl p-8 shadow-2xl relative z-10 text-center">
         {/* Logo/Branding */}
         <div className="mb-6">
-          <h1 className="text-4xl sm:text-5xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-amber-300 drop-shadow-sm">
-            Sketch Battle
+          <h1 className="text-4xl sm:text-5xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-amber-300 drop-shadow-sm uppercase">
+            SketchBattle
           </h1>
           <p className="mt-2 text-amber-200 text-base font-bold tracking-wide">
             Draw, Guess, Compete.
           </p>
           <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed max-w-sm mx-auto">
-            Challenge friends in fast-paced real-time drawing battles. Sketch, guess words, earn points, and climb the leaderboard.
+            Challenge friends and players worldwide in real-time drawing battles. Sketch, guess words, earn points, and climb the leaderboard.
           </p>
         </div>
 
@@ -125,7 +125,7 @@ export default function JoinGameForm() {
             🚫 Vote Kick System
           </span>
           <span className="px-3 py-1 text-[10px] font-bold tracking-wider uppercase rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/20">
-            🏆 Real-Time Leaderboards
+            🏆 Global Leaderboards
           </span>
         </div>
 
