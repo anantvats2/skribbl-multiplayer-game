@@ -17,6 +17,7 @@ const wordsCache: Record<Languages, string[]> = {} as Record<
 function loadWords(language: Languages): Promise<string[]> {
   return new Promise((resolve, reject) => {
     if (wordsCache[language]) {
+      console.log(`[WORDS] cache hit for language: ${language} (${wordsCache[language].length} words)`);
       return resolve(wordsCache[language]);
     }
 
@@ -24,8 +25,10 @@ function loadWords(language: Languages): Promise<string[]> {
       Object.entries(Languages).find(([, value]) => value === language)?.[0] ?? "en";
 
     const filePath = path.join(WORDS_DIR, `${languageKey}.txt`);
+    console.log(`[WORDS] loading file: ${filePath} for language: ${language}`);
     fs.readFile(filePath, "utf8", (err, data) => {
       if (err) {
+        console.error(`[WORDS] file read error for ${language} (${filePath}):`, err.message);
         return reject(
           new Error(`Failed to load words for ${language}: ${err.message}`)
         );
@@ -36,14 +39,17 @@ function loadWords(language: Languages): Promise<string[]> {
         .map((word) => word.trim())
         .filter(Boolean);
       if (words.length === 0) {
+        console.error(`[WORDS] word file is empty: ${filePath}`);
         return reject(new Error(`No words found in ${filePath}`));
       }
 
+      console.log(`[WORDS] loaded ${words.length} words for language: ${language}`);
       wordsCache[language] = words;
       resolve(words);
     });
   });
 }
+
 
 // Function to get random words
 export async function getRandomWords(

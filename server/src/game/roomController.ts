@@ -46,20 +46,22 @@ function clearTimers(roomId: string) {
 }
 
 export async function startGame(room: Room, io: Server) {
-  console.log("[START_GAME] startGame called for room:", room.roomId, "language:", room.settings.language);
-  clearTimers(room.roomId);
-  room.gameState.currentRound = 1;
-  room.gameState.currentPlayer = 0;
-  room.gameState.guessedWords = [];
-  room.gameState.drawingData = [];
-  room.gameState.hintLetters = [];
-  (room.gameState.roomState = RoomState.CHOOSING_WORD),
+  console.log(`[AUTO_START] calling startGame roomId=${room.roomId} language=${room.settings.language} players=${room.players.length}`);
+  try {
+    clearTimers(room.roomId);
+    room.gameState.currentRound = 1;
+    room.gameState.currentPlayer = 0;
+    room.gameState.guessedWords = [];
+    room.gameState.drawingData = [];
+    room.gameState.hintLetters = [];
+    room.gameState.roomState = RoomState.CHOOSING_WORD;
     await setRoom(room.roomId, room);
-  console.log("[START_GAME] Room saved with language:", room.settings.language);
-  console.log("[START_GAME] emitting GAME_STARTED to room:", room.roomId);
-  io.to(room.roomId).emit(GameEvent.GAME_STARTED, room);
-  await nextRound(room.roomId, io);
-  console.log("[START_GAME] first round initialized for room:", room.roomId);
+    io.to(room.roomId).emit(GameEvent.GAME_STARTED, room);
+    await nextRound(room.roomId, io);
+    console.log(`[AUTO_START] startGame completed roomId=${room.roomId}`);
+  } catch (err) {
+    console.error(`[AUTO_START] startGame error in room ${room.roomId}:`, err);
+  }
   return room;
 }
 
@@ -163,36 +165,57 @@ export async function nextRound(roomId: string, io: Server) {
   const currentPlayer = room.players[room.gameState.currentPlayer];
   if (!currentPlayer) return;
 
-  // Log language for debugging
-  console.log("[LANGUAGE]", room.settings.language);
+  // Language normalization using explicit map (avoids TS cast issues)
+  const languageKeyMap: Record<string, Languages> = {
+    en: Languages.en,
+    es: Languages.es,
+    fr: Languages.fr,
+    de: Languages.de,
+    it: Languages.it,
+    nl: Languages.nl,
+    pt: Languages.pt,
+    ru: Languages.ru,
+    tr: Languages.tr,
+    zh: Languages.zh,
+  };
 
-  const language = (() => {
-    const value = room.settings.language;
+  const rawLanguage = room.settings.language;
+  const language = languageKeyMap[String(rawLanguage)] ??
+    (Object.values(Languages).includes(rawLanguage as Languages) ? rawLanguage as Languages : Languages.en);
 
-    if (typeof value === "string") {
-      const key = Object.keys(Languages).find((k) => k === value);
-      if (key) {
-        return Languages[key as keyof typeof Languages];
+  console.log(`[WORDS] language: ${language} (raw: ${rawLanguage})`);
+  console.log(`[ROOM_STATE] roomId=${roomId} language=${language} players=${room.players.length} state=${room.gameState.roomState}`);
+
+  // Get random words — try requested language, fall back to English on error
+  let words: string[] = [];
+  try {
+    words = await getRandomWords(
+      room.settings.wordCount,
+      language,
+      room.settings.onlyCustomWords,
+      room.settings.customWords
+    );
+    console.log(`[WORDS] loaded ${words.length} words for language: ${language}`);
+  } catch (primaryErr) {
+    console.error(`[WORDS] Failed to load words for language ${language}:`, primaryErr);
+    if (language !== Languages.en) {
+      try {
+        console.log(`[WORDS] Falling back to English word list`);
+        words = await getRandomWords(
+          room.settings.wordCount,
+          Languages.en,
+          room.settings.onlyCustomWords,
+          room.settings.customWords
+        );
+        console.log(`[WORDS] fallback loaded ${words.length} English words`);
+      } catch (fallbackErr) {
+        console.error(`[WORDS] English fallback also failed:`, fallbackErr);
+        return;
       }
+    } else {
+      return;
     }
-
-    if (Object.values(Languages).includes(value as Languages)) {
-      return value as Languages;
-    }
-
-    console.log("[LANGUAGE] invalid or missing, defaulting to English", value);
-    return Languages.en;
-  })();
-
-  console.log("[LANGUAGE] normalized:", language);
-
-  // Get random words
-  const words = await getRandomWords(
-    room.settings.wordCount,
-    language,
-    room.settings.onlyCustomWords,
-    room.settings.customWords
-  );
+  }
 
   // Send words to current player
   io.to(currentPlayer.playerId).emit(GameEvent.CHOOSE_WORD, {
@@ -341,20 +364,20 @@ export const handleNewRoom = async (
   language: Languages,
   isPrivate?: boolean
 ) => {
-  console.log("[HANDLE_NEW_ROOM] Language received:", language);
+  console.log(`[MATCHMAKING] language: ${language} isPrivate: ${isPrivate}`);
   let roomId;
   if (isPrivate) {
     roomId = await generateEmptyRoom(socket, isPrivate, language);
+    console.log(`[MATCHMAKING] private room created: ${roomId}`);
   } else {
-    console.log("[MATCHMAKING] searching public rooms");
+    console.log(`[MATCHMAKING] searching public rooms for language: ${language}`);
     const room = await getPublicRoom(language);
     if (!room) {
-      console.log("[MATCHMAKING] creating new public room");
       roomId = await generateEmptyRoom(socket, false, language);
+      console.log(`[MATCHMAKING] room created: ${roomId} language: ${language}`);
     } else {
-      console.log(`[MATCHMAKING] found room: ${room.roomId}`);
-      console.log("[MATCHMAKING] joining existing room");
       roomId = room.roomId;
+      console.log(`[MATCHMAKING] room found: ${roomId} language: ${room.settings.language} players: ${room.players.length}`);
     }
   }
 
@@ -649,18 +672,28 @@ export async function handleNewPlayerJoin(
   socket.emit(GameEvent.JOINED_ROOM, room);
   io.to(room.roomId).emit(GameEvent.PLAYER_JOINED, player);
 
-  if (
-    !room.isPrivate &&
+  // Ensure no leftover timer exists for this room before scheduling a new auto-start
+  if (startGameTimers.has(roomId)) {
+    clearTimeout(startGameTimers.get(roomId));
+    startGameTimers.delete(roomId);
+    console.log(`[AUTO_START] Cleared stale timer for room ${roomId}`);
+  }
+  if (!room.isPrivate &&
     room.players.length >= 2 &&
     !startGameTimers.has(roomId) &&
     room.gameState.currentRound === 0
   ) {
-    console.log(`[MATCHMAKING] Room ${roomId} has >= 2 players. Scheduling auto-start in 10s.`);
+    console.log(`[AUTO_START] Scheduling auto-start for room ${roomId}`);
+    console.log(`[AUTO_START] Language: ${room.settings.language}`);
+    console.log(`[AUTO_START] Player count: ${room.players.length}`);
     const timeOut = setTimeout(async () => {
+      console.log(`[AUTO_START] Timer fired for room ${roomId}`);
       const currentRoom = await getRoom(roomId);
       if (currentRoom && currentRoom.players.length >= 2 && currentRoom.gameState.currentRound === 0) {
-        console.log(`[MATCHMAKING] Starting game automatically for room ${roomId}`);
+        console.log(`[AUTO_START] Starting game automatically for room ${roomId}`);
         await startGame(currentRoom, io);
+      } else {
+        console.log(`[AUTO_START] Conditions not met for auto-start in room ${roomId}`);
       }
       startGameTimers.delete(roomId);
     }, 10000);

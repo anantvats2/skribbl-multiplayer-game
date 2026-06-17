@@ -23,19 +23,37 @@ class RoomManager {
 
   getPublicRoom(language: Languages = Languages.en): Room | null {
     const normalizedLanguage = (() => {
-      if (typeof language === "string") {
-        const key = Object.keys(Languages).find((k) => k === language) as
-          | keyof typeof Languages
-          | undefined;
-        if (key) return Languages[key];
+      // Complete map of all short codes → enum values
+      const languageMap: Record<string, Languages> = {
+        en: Languages.en,
+        es: Languages.es,
+        fr: Languages.fr,
+        de: Languages.de,
+        it: Languages.it,
+        nl: Languages.nl,
+        pt: Languages.pt,
+        ru: Languages.ru,
+        tr: Languages.tr,
+        zh: Languages.zh,
+      };
+
+      const key = String(language);
+
+      // Case 1: short code sent by client (e.g. "de", "zh")
+      if (key in languageMap) {
+        return languageMap[key];
       }
 
+      // Case 2: full enum value already stored (e.g. "German", "Chinese")
       if (Object.values(Languages).includes(language as Languages)) {
         return language as Languages;
       }
 
+      // Default fallback
       return Languages.en;
     })();
+
+    console.log(`[PUBLIC_MATCHMAKING] Normalized language for search: ${normalizedLanguage}`);
 
     for (const roomId of this.getPublicRooms()) {
       const room = this.getRoom(roomId);
