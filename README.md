@@ -107,6 +107,12 @@ Built using React, TypeScript, Node.js, Express, and Socket.IO, the application 
 * Vercel
 * Render
 
+State Management:
+In-memory room and game state management using Node.js and Socket.IO.
+
+Database:
+Not required for the current MVP implementation.
+
 ---
 
 ## 📂 Project Structure
